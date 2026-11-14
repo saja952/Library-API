@@ -1,4 +1,5 @@
 
+using FluentValidation;
 using Library.Application.Common;
 using Library.Application.DTOs;
 using Library.Application.Interfaces;
@@ -11,13 +12,20 @@ namespace Library.Api.Controllers;
 public class BooksController : ControllerBase
 {
     private readonly IBookService _bookService;
+    private readonly IValidator<CreateBookRequest> _createValidator;
+    private readonly IValidator<UpdateBookRequest> _updateValidator;
 
-    public BooksController(IBookService bookService)
+    public BooksController(
+        IBookService bookService,
+        IValidator<CreateBookRequest> createValidator,
+        IValidator<UpdateBookRequest> updateValidator)
     {
         _bookService = bookService;
+        _createValidator = createValidator;
+        _updateValidator = updateValidator;
     }
 
-    // GET /api/books
+    // GET: api/books
     [HttpGet]
     public async Task<ActionResult<List<BookResponse>>> GetAll(
         CancellationToken cancellationToken)
@@ -28,7 +36,7 @@ public class BooksController : ControllerBase
         return Ok(result.Data);
     }
 
-    // GET /api/books/{id}
+    // GET: api/books/{id}
     [HttpGet("{id:int}")]
     public async Task<ActionResult<BookResponse>> GetById(
         int id,
@@ -48,12 +56,22 @@ public class BooksController : ControllerBase
         return Ok(result.Data);
     }
 
-    // POST /api/books
+    // POST: api/books
     [HttpPost]
     public async Task<IActionResult> Create(
         [FromBody] CreateBookRequest request,
         CancellationToken cancellationToken)
     {
+        // FluentValidation
+        var validationResult = await _createValidator.ValidateAsync(
+            request, cancellationToken);
+
+        if (!validationResult.IsValid)
+        {
+            return BadRequest(new ValidationProblemDetails(
+                validationResult.ToDictionary()));
+        }
+
         var result = await _bookService.CreateAsync(
             request, cancellationToken);
 
@@ -68,13 +86,23 @@ public class BooksController : ControllerBase
             result.Data);
     }
 
-    // PUT /api/books/{id}
+    // PUT: api/books/{id}
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(
         int id,
         [FromBody] UpdateBookRequest request,
         CancellationToken cancellationToken)
     {
+        // FluentValidation
+        var validationResult = await _updateValidator.ValidateAsync(
+            request, cancellationToken);
+
+        if (!validationResult.IsValid)
+        {
+            return BadRequest(new ValidationProblemDetails(
+                validationResult.ToDictionary()));
+        }
+
         var result = await _bookService.UpdateAsync(
             id, request, cancellationToken);
 
@@ -86,7 +114,7 @@ public class BooksController : ControllerBase
         return Ok(result.Data);
     }
 
-    // DELETE /api/books/{id}
+    // DELETE: api/books/{id}
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(
         int id,

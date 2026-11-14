@@ -1,4 +1,5 @@
 
+using FluentValidation;
 using Library.Application.Common;
 using Library.Application.DTOs;
 using Library.Application.Interfaces;
@@ -12,13 +13,16 @@ public class AuthorsController : ControllerBase
 {
     private readonly IAuthorService _authorService;
     private readonly IBookService _bookService;
+    private readonly IValidator<CreateAuthorRequest> _createValidator;
 
     public AuthorsController(
         IAuthorService authorService,
-        IBookService bookService)
+        IBookService bookService,
+        IValidator<CreateAuthorRequest> createValidator)
     {
         _authorService = authorService;
         _bookService = bookService;
+        _createValidator = createValidator;
     }
 
     // GET /api/authors
@@ -57,6 +61,16 @@ public class AuthorsController : ControllerBase
         [FromBody] CreateAuthorRequest request,
         CancellationToken cancellationToken)
     {
+        // Validate request using FluentValidation
+        var validationResult = await _createValidator.ValidateAsync(
+            request, cancellationToken);
+
+        if (!validationResult.IsValid)
+        {
+            return BadRequest(new ValidationProblemDetails(
+                validationResult.ToDictionary()));
+        }
+
         var result = await _authorService.CreateAsync(
             request, cancellationToken);
 
